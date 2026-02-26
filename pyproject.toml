@@ -6,12 +6,27 @@ readme = "README.md"
 authors = [
     { name = "Yuriy Guts", email = "yuriy.guts@gmail.com" }
 ]
+license = "BSD-3-Clause"
 requires-python = ">=3.12"
+keywords = ["ai", "agent", "file-organizer", "llm", "ollama"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: BSD License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Desktop Environment :: File Managers",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 dependencies = [
     "openai>=2.21.0",
     "pydantic>=2.12.5",
     "rich>=14.3.3",
 ]
+
+[project.urls]
+Repository = "https://github.com/YuriyGuts/ordnung"
 
 [dependency-groups]
 dev = [
