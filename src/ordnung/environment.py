@@ -3,9 +3,10 @@
 import json
 from collections.abc import Sequence
 
-from ordnung.entities import ToolSecurityPolicy
+from ordnung.security import ToolSecurityPolicy
 from ordnung.tools import Tool
 from ordnung.tui import approval_prompt
+from ordnung.tui import print_tool_auto_approval_update
 from ordnung.tui import print_tool_call_request
 from ordnung.tui import user_feedback_prompt
 
@@ -78,8 +79,8 @@ class Environment:
                 case "a":
                     # User approved this and all future calls of this tool:
                     # add the tool name to the allow-list and let the tool run.
-                    if name not in self.sec_policy.approved_tool_names:
-                        self.sec_policy.approved_tool_names.append(name)
+                    self.sec_policy.approved_tool_names.add(name)
+                    print_tool_auto_approval_update(name)
                 case "f":
                     # User provided steering/guidance feedback: reject the call
                     # and return the feedback as a tool call result.

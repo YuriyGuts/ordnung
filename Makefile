@@ -1,3 +1,5 @@
+.PHONY: *
+
 lint:
 	uv run ruff format --check .
 	uv run ruff check .

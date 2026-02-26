@@ -1,16 +1,17 @@
 """Implements the tools available to the environment/agent."""
 
 import shutil
+from abc import ABC
 from abc import abstractmethod
 from pathlib import Path
 
 from pydantic import BaseModel
 from pydantic import Field
 
-from ordnung.entities import ToolSecurityPolicy
+from ordnung.security import ToolSecurityPolicy
 
 
-class Tool(BaseModel):
+class Tool(BaseModel, ABC):
     """The base tool class that represents a specific tool call instance with specific arguments."""
 
     @classmethod
@@ -24,16 +25,14 @@ class Tool(BaseModel):
         return cls.__doc__ or ""
 
     @classmethod
-    def _check_fs_jail(cls, path: Path, sec_policy: ToolSecurityPolicy) -> None:
-        """Check whether the tool can access the specified path according to the security policy."""
-        path = path.resolve()
-        if not path.is_relative_to(sec_policy.fs_root_jail):
-            msg = (
-                f"The requested path ({path}) is outside "
-                f"the task root path ({sec_policy.fs_root_jail}). "
-                "Rejected by security policy."
-            )
-            raise RuntimeError(msg)
+    def to_openai_format(cls) -> dict:
+        """Format the tool as an OpenAI tool definition."""
+        return {
+            "type": "function",
+            "name": cls.get_name(),
+            "description": cls.get_description(),
+            "parameters": cls.model_json_schema(),
+        }
 
     @abstractmethod
     def run(self, sec_policy: ToolSecurityPolicy) -> dict:
@@ -48,15 +47,13 @@ class ListDirectoryTool(Tool):
 
     def run(self, sec_policy: ToolSecurityPolicy) -> dict:
         """Execute the tool."""
-        self._check_fs_jail(self.dir_path, sec_policy)
+        sec_policy.validate_path_access(self.dir_path)
         output_items = []
         for item in self.dir_path.iterdir():
             if item.is_file():
                 item_type = "file"
             elif item.is_dir():
                 item_type = "directory"
-            elif item.is_symlink():
-                item_type = "symlink"
             else:
                 item_type = "unknown"
 
@@ -77,39 +74,39 @@ class CreateDirectoryTool(Tool):
 
     def run(self, sec_policy: ToolSecurityPolicy) -> dict:
         """Execute the tool."""
-        self._check_fs_jail(self.dir_path, sec_policy)
+        sec_policy.validate_path_access(self.dir_path)
         self.dir_path.mkdir(parents=True, exist_ok=True)
         return {"created": True}
 
 
 class MoveFileOrDirectoryTool(Tool):
-    """Move a file or directory to a new location."""
+    """Moves a file or directory to a new location."""
 
     source_path: Path = Field(description="Source file/directory path.")
     destination_path: Path = Field(description="Destination file/directory path.")
 
     def run(self, sec_policy: ToolSecurityPolicy) -> dict:
         """Execute the tool."""
-        self._check_fs_jail(self.source_path, sec_policy)
-        self._check_fs_jail(self.destination_path, sec_policy)
+        sec_policy.validate_path_access(self.source_path)
+        sec_policy.validate_path_access(self.destination_path)
         shutil.move(src=self.source_path, dst=self.destination_path)
         return {"moved": True}
 
 
 class ReadTextFileTool(Tool):
-    """Read the contents of the specified file, assuming it is UTF8-encoded text."""
+    """Reads the contents of the specified file, assuming it is UTF-8-encoded text."""
 
     file_path: Path = Field(description="The path of the file to read.")
 
     def run(self, sec_policy: ToolSecurityPolicy) -> dict:
         """Execute the tool."""
-        self._check_fs_jail(self.file_path, sec_policy)
+        sec_policy.validate_path_access(self.file_path)
         file_contents = self.file_path.read_text(encoding="utf-8")
         return {"contents": file_contents}
 
 
 class ReadBinaryFileTool(Tool):
-    """Read the contents of a binary file as a hex string."""
+    """Reads the contents of a binary file as a hex string."""
 
     _MAX_LIMIT = 1024
 
@@ -129,7 +126,10 @@ class ReadBinaryFileTool(Tool):
             raise RuntimeError(
                 f"The specified limit is greater than the maximum allowed limit ({self._MAX_LIMIT})"
             )
-        self._check_fs_jail(self.file_path, sec_policy)
-        file_contents = self.file_path.read_bytes()
-        hex_contents = file_contents[self.offset : self.limit].hex(sep=":")
-        return {"hex_contents": hex_contents}
+        sec_policy.validate_path_access(self.file_path)
+
+        with open(self.file_path, mode="rb") as fd:
+            fd.seek(self.offset)
+            file_contents = fd.read(self.limit)
+
+        return {"hex_contents": file_contents.hex(sep=":")}

@@ -41,8 +41,8 @@ select = [
     "B",        # flake8-bugbear
     "C4",       # flake8-comprehensions
     "D",        # pydocstyle
-    "E",        # pyflakes
-    "F",        # pycodestyle
+    "E",        # pycodestyle
+    "F",        # pyflakes
     "I",        # isort
     "INP",      # check missing __init__.py
     "N",        # pep8-naming

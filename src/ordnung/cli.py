@@ -1,15 +1,18 @@
 """The CLI entry point module of the application."""
 
 import argparse
+import os
 import sys
+from argparse import Namespace
 from importlib.metadata import metadata
 from pathlib import Path
 
 from ordnung.organize import organize
+from ordnung.tui import print_interrupted_message
 
 
-def main() -> None:
-    """Run the entry point of the application."""
+def parse_args() -> Namespace:
+    """Parse the command line arguments."""
     program_meta = metadata("ordnung")
     parser = argparse.ArgumentParser(
         prog=program_meta["Name"],
@@ -17,11 +20,49 @@ def main() -> None:
     )
     parser.add_argument(
         "directory",
-        type=Path,
         help="The path to the directory to organize.",
+        type=Path,
+    )
+    parser.add_argument(
+        "--llm-api-base-url",
+        help="The base URL of the OpenAI-compatible LLM API. Defaults to local Ollama.",
+        type=str,
+        required=False,
+        default="http://localhost:11434/v1",
+    )
+    parser.add_argument(
+        "--llm-api-key",
+        help="The API key for LLM API authentication. Falls back to OPENAI_API_KEY env var.",
+        type=str,
+        required=False,
+        default=os.environ.get("OPENAI_API_KEY", "ollama"),
+    )
+    parser.add_argument(
+        "--llm-name",
+        help="The name of the LLM to use in the LLM API.",
+        type=str,
+        required=False,
+        default="gpt-oss:20b",
     )
     args = parser.parse_args()
-    result = organize(args.directory)
+    return args
+
+
+def main() -> None:
+    """Run the entry point of the application."""
+    args = parse_args()
+
+    try:
+        result = organize(
+            dir_path=args.directory,
+            llm_api_base_url=args.llm_api_base_url,
+            llm_api_key=args.llm_api_key,
+            llm_name=args.llm_name,
+        )
+    except KeyboardInterrupt:
+        print_interrupted_message()
+        sys.exit(130)
+
     if not result.is_success:
         sys.exit(1)
 

@@ -17,6 +17,7 @@ from ordnung.environment import Environment
 from ordnung.llm import LLMClient
 from ordnung.tools import Tool
 from ordnung.tui import calling_llm_spinner
+from ordnung.tui import print_content_response
 from ordnung.tui import print_reasoning
 from ordnung.tui import print_tool_result
 
@@ -41,18 +42,9 @@ class Agent:
             The tool classes available to the agent.
         """
         self.llm_client = llm_client
-        self.instructions = self._get_system_prompt()
-        self.openai_tools = [self._create_openai_tool(tool) for tool in tools]
+        self.system_prompt = self._get_system_prompt()
+        self.openai_tools = [tool.to_openai_format() for tool in tools]
         self.conversation_context = []
-
-    def _create_openai_tool(self, tool: type[Tool]) -> dict:
-        """Format the tool class as an OpenAI tool definition."""
-        return {
-            "type": "function",
-            "name": tool.get_name(),
-            "description": tool.get_description(),
-            "parameters": tool.model_json_schema(),
-        }
 
     def _get_system_prompt(self) -> str:
         """Read the system prompt from a file."""
@@ -130,17 +122,19 @@ class Agent:
         """Send the current context to the LLM API for inference."""
         with calling_llm_spinner():
             response = self.llm_client.create_response(
-                instructions=self.instructions,
-                input=self.conversation_context,
+                instructions=self.system_prompt,
+                input_items=self.conversation_context,
                 tools=self.openai_tools,
             )
             return response
 
     def _handle_reasoning(self, item: ResponseReasoningItem) -> None:
+        """Print the reasoning summary from the LLM."""
         summary_text = "".join(s.text for s in item.summary)
         print_reasoning(summary_text)
 
     def _handle_tool_call(self, item: ResponseFunctionToolCall, env: Environment) -> None:
+        """Execute a tool call and append the result to the conversation context."""
         tool_result = env.run_tool(item.name, item.arguments)
         print_tool_result(tool_result)
 
@@ -153,11 +147,10 @@ class Agent:
         self.conversation_context.append(function_call_output_item)
 
     def _extract_final_result(self, item: ResponseOutputMessage) -> OrganizeDirectoryResult:
+        """Extract the overall task result from the LLM's content response."""
         try:
             # Check for refusals (triggered LLM safety guardrails) and terminate if we found any.
-            has_refusals = any(
-                cnt for cnt in item.content if isinstance(cnt, ResponseOutputRefusal)
-            )
+            has_refusals = any(isinstance(cnt, ResponseOutputRefusal) for cnt in item.content)
             if has_refusals:
                 return OrganizeDirectoryResult(
                     is_success=False,
@@ -168,6 +161,7 @@ class Agent:
             response_text = "".join(
                 cnt.text for cnt in item.content if isinstance(cnt, ResponseOutputText)
             )
+            print_content_response(response_text)
 
             # The LLM may not follow the instructions closely and produce an invalid final response.
             # Therefore, we are parsing the content defensively here.
