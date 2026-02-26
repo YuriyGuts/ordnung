@@ -60,7 +60,7 @@ class ListDirectoryTool(Tool):
             item_output = {
                 "type": item_type,
                 "name": item.name,
-                "size_bytes": item.stat().st_size,
+                "size_bytes": item.stat().st_size if item.is_file() else None,
             }
             output_items.append(item_output)
 

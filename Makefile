@@ -12,4 +12,7 @@ lint-fix:
 test:
 	uv run pytest .
 
+test-coverage:
+	uv run pytest --cov --cov-report=term-missing --cov-report=html
+
 check: lint test
