@@ -1,6 +1,7 @@
 lint:
 	uv run ruff format --check .
 	uv run ruff check .
+	uv run ty check .
 
 lint-fix:
 	uv run ruff format .

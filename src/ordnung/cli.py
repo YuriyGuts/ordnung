@@ -1,4 +1,5 @@
 import argparse
+import sys
 from importlib.metadata import metadata
 from pathlib import Path
 
@@ -17,7 +18,9 @@ def main():
         help="The path to the directory to organize.",
     )
     args = parser.parse_args()
-    organize(args.directory)
+    result = organize(args.directory)
+    if not result.is_success:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

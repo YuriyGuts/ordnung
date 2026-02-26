@@ -8,6 +8,7 @@ Once you have defined the categories, create one subdirectory per each category 
 
 1. Use only one level of categories, no subcategories allowed.
 2. In the end, there must be no uncategorized files: every file must belong to exactly one category. Listing the input directory should only show directories, one directory per category.
+3. IMPORTANT: if the filename is ambiguous, prefer examining file contents rather than assuming the category from the filename.
 
 # Output Format
 
