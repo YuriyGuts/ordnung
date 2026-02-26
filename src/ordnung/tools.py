@@ -1,3 +1,5 @@
+"""Implements the tools available to the environment/agent."""
+
 import shutil
 from abc import abstractmethod
 from pathlib import Path
@@ -9,16 +11,21 @@ from ordnung.entities import ToolSecurityPolicy
 
 
 class Tool(BaseModel):
+    """The base tool class that represents a specific tool call instance with specific arguments."""
+
     @classmethod
     def get_name(cls) -> str:
+        """Get the name of the tool."""
         return cls.__name__
 
     @classmethod
     def get_description(cls) -> str:
+        """Get the description of the tool."""
         return cls.__doc__ or ""
 
     @classmethod
     def _check_fs_jail(cls, path: Path, sec_policy: ToolSecurityPolicy) -> None:
+        """Check whether the tool can access the specified path according to the security policy."""
         path = path.resolve()
         if not path.is_relative_to(sec_policy.fs_root_jail):
             msg = (
@@ -30,6 +37,7 @@ class Tool(BaseModel):
 
     @abstractmethod
     def run(self, sec_policy: ToolSecurityPolicy) -> dict:
+        """Execute the tool."""
         pass
 
 
@@ -39,6 +47,7 @@ class ListDirectoryTool(Tool):
     dir_path: Path = Field(description="The path to the directory to list the contents of.")
 
     def run(self, sec_policy: ToolSecurityPolicy) -> dict:
+        """Execute the tool."""
         self._check_fs_jail(self.dir_path, sec_policy)
         output_items = []
         for item in self.dir_path.iterdir():
@@ -67,6 +76,7 @@ class CreateDirectoryTool(Tool):
     dir_path: Path = Field(description="The path to the desired directory.")
 
     def run(self, sec_policy: ToolSecurityPolicy) -> dict:
+        """Execute the tool."""
         self._check_fs_jail(self.dir_path, sec_policy)
         self.dir_path.mkdir(parents=True, exist_ok=True)
         return {"created": True}
@@ -79,6 +89,7 @@ class MoveFileOrDirectoryTool(Tool):
     destination_path: Path = Field(description="Destination file/directory path.")
 
     def run(self, sec_policy: ToolSecurityPolicy) -> dict:
+        """Execute the tool."""
         self._check_fs_jail(self.source_path, sec_policy)
         self._check_fs_jail(self.destination_path, sec_policy)
         shutil.move(src=self.source_path, dst=self.destination_path)
@@ -91,6 +102,7 @@ class ReadTextFileTool(Tool):
     file_path: Path = Field(description="The path of the file to read.")
 
     def run(self, sec_policy: ToolSecurityPolicy) -> dict:
+        """Execute the tool."""
         self._check_fs_jail(self.file_path, sec_policy)
         file_contents = self.file_path.read_text(encoding="utf-8")
         return {"contents": file_contents}
@@ -112,6 +124,7 @@ class ReadBinaryFileTool(Tool):
     )
 
     def run(self, sec_policy: ToolSecurityPolicy) -> dict:
+        """Execute the tool."""
         if self.limit > self._MAX_LIMIT:
             raise RuntimeError(
                 f"The specified limit is greater than the maximum allowed limit ({self._MAX_LIMIT})"

@@ -1,3 +1,5 @@
+"""Implements the top-level operations for directory organization."""
+
 from pathlib import Path
 
 from ordnung.agent import Agent
@@ -17,6 +19,18 @@ from ordnung.tui import print_task_spec
 
 
 def organize(dir_path: Path) -> OrganizeDirectoryResult:
+    """
+    Organize the files in the specified directory.
+
+    Parameters
+    ----------
+    dir_path
+        The path to the directory to organize.
+
+    Returns
+    -------
+    Task execution result as reported by the agent.
+    """
     dir_path = dir_path.resolve()
     task_spec = OrganizeDirectoryTaskSpec(dir_path=dir_path)
     print_task_spec(task_spec)

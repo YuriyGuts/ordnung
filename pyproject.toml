@@ -1,7 +1,7 @@
 [project]
 name = "ordnung"
 version = "0.1.0"
-description = "An agentic AI-powered organizer of your files"
+description = "An agentic AI-powered organizer of your files."
 readme = "README.md"
 authors = [
     { name = "Yuriy Guts", email = "yuriy.guts@gmail.com" }
@@ -13,13 +13,6 @@ dependencies = [
     "rich>=14.3.3",
 ]
 
-[project.scripts]
-ordnung = "ordnung.cli:main"
-
-[build-system]
-requires = ["uv_build>=0.10.2,<0.11.0"]
-build-backend = "uv_build"
-
 [dependency-groups]
 dev = [
     "pytest>=9.0.2",
@@ -27,17 +20,27 @@ dev = [
     "ty>=0.0.18",
 ]
 
+[project.scripts]
+ordnung = "ordnung.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.10.2,<0.11.0"]
+build-backend = "uv_build"
+
 [tool.ruff]
 line-length = 100
 
 [tool.ruff.lint.isort]
 force-single-line = true
 
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
 [tool.ruff.lint]
 select = [
     "B",        # flake8-bugbear
     "C4",       # flake8-comprehensions
-    # "D",        # pydocstyle
+    "D",        # pydocstyle
     "E",        # pyflakes
     "F",        # pycodestyle
     "I",        # isort

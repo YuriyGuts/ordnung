@@ -1,3 +1,5 @@
+"""Implements the main behavior of the agent."""
+
 import json
 from collections.abc import Sequence
 from pathlib import Path
@@ -20,13 +22,31 @@ from ordnung.tui import print_tool_result
 
 
 class Agent:
+    """
+    An LLM-powered agent.
+
+    Runs the agentic loop, delegating the decision-making logic to the LLM.
+    When the LLM returns tool call requests, asks the environment to execute the tool.
+    """
+
     def __init__(self, llm_client: LLMClient, tools: Sequence[type[Tool]]) -> None:
+        """
+        Create a new agent.
+
+        Parameters
+        ----------
+        llm_client
+            The LLM client to use for LLM calls.
+        tools
+            The tool classes available to the agent.
+        """
         self.llm_client = llm_client
         self.instructions = self._get_system_prompt()
         self.openai_tools = [self._create_openai_tool(tool) for tool in tools]
         self.conversation_context = []
 
     def _create_openai_tool(self, tool: type[Tool]) -> dict:
+        """Format the tool class as an OpenAI tool definition."""
         return {
             "type": "function",
             "name": tool.get_name(),
@@ -35,10 +55,12 @@ class Agent:
         }
 
     def _get_system_prompt(self) -> str:
+        """Read the system prompt from a file."""
         current_file_path = Path(__file__)
         return (current_file_path.parent / "system_prompt.md").read_text(encoding="utf-8")
 
     def _add_user_message(self, msg: str) -> None:
+        """Add a user message to the conversation context."""
         self.conversation_context.append(
             {"role": "user", "content": msg},
         )
@@ -48,15 +70,49 @@ class Agent:
         task_spec: OrganizeDirectoryTaskSpec,
         env: Environment,
     ) -> OrganizeDirectoryResult:
+        """
+        Run the agentic loop until it reaches a final result (success or failure).
+
+        Parameters
+        ----------
+        task_spec
+            The specification of the task to perform.
+        env
+            The environment to execute the tools in.
+
+        Returns
+        -------
+        The result of performing the task.
+        """
         initial_message = f'Input directory: "{task_spec.dir_path}"'
         self._add_user_message(initial_message)
-        while not (agent_result := self.act(env)):
+        while not (final_result := self._act(env)):
             pass
-        return agent_result
+        return final_result
 
-    def act(self, env: Environment) -> OrganizeDirectoryResult | None:
-        response = self.call_llm()
+    def _act(self, env: Environment) -> OrganizeDirectoryResult | None:
+        """
+        Run a single iteration of the agentic loop.
+
+        Use the LLM to decide the next action based on the conversation context accumulated so far.
+        Handle different types of LLM outputs (reasoning, tool call, final content output).
+
+        Parameters
+        ----------
+        env
+            The environment to execute the tools in.
+
+        Returns
+        -------
+        Final task result if a final state has been reached after this iteration.
+        Otherwise, return None.
+        """
+        # Run LLM inference and receive an OpenAI Responses API object.
+        response = self._call_llm()
+        # Append LLM outputs to the conversation context so that they are passed on the next turn.
         self.conversation_context += response.output
+
+        # Handle each output item type individually.
         for item in response.output:
             match item:
                 case ResponseReasoningItem():
@@ -70,6 +126,16 @@ class Agent:
 
         return None
 
+    def _call_llm(self) -> Response:
+        """Send the current context to the LLM API for inference."""
+        with calling_llm_spinner():
+            response = self.llm_client.create_response(
+                instructions=self.instructions,
+                input=self.conversation_context,
+                tools=self.openai_tools,
+            )
+            return response
+
     def _handle_reasoning(self, item: ResponseReasoningItem) -> None:
         summary_text = "".join(s.text for s in item.summary)
         print_reasoning(summary_text)
@@ -77,6 +143,8 @@ class Agent:
     def _handle_tool_call(self, item: ResponseFunctionToolCall, env: Environment) -> None:
         tool_result = env.run_tool(item.name, item.arguments)
         print_tool_result(tool_result)
+
+        # Append the tool call result to the context, linking it by `call_id`.
         function_call_output_item = {
             "type": "function_call_output",
             "call_id": item.call_id,
@@ -86,32 +154,30 @@ class Agent:
 
     def _extract_final_result(self, item: ResponseOutputMessage) -> OrganizeDirectoryResult:
         try:
+            # Check for refusals (triggered LLM safety guardrails) and terminate if we found any.
             has_refusals = any(
                 cnt for cnt in item.content if isinstance(cnt, ResponseOutputRefusal)
             )
             if has_refusals:
                 return OrganizeDirectoryResult(
                     is_success=False,
-                    error="The output content has triggered a refusal from the LLM",
+                    error="The prompt has triggered a refusal from the LLM",
                 )
+
+            # Otherwise, process the regular text responses.
             response_text = "".join(
                 cnt.text for cnt in item.content if isinstance(cnt, ResponseOutputText)
             )
+
+            # The LLM may not follow the instructions closely and produce an invalid final response.
+            # Therefore, we are parsing the content defensively here.
             agent_response = json.loads(response_text)
             agent_succeeded = agent_response.get("agent_succeeded")
             error_msg = agent_response.get("error")
+
             return OrganizeDirectoryResult(
                 is_success=agent_succeeded,
                 error=error_msg,
             )
         except Exception as e:
             return OrganizeDirectoryResult(is_success=False, error=str(e))
-
-    def call_llm(self) -> Response:
-        with calling_llm_spinner():
-            response = self.llm_client.create_response(
-                instructions=self.instructions,
-                input=self.conversation_context,
-                tools=self.openai_tools,
-            )
-            return response

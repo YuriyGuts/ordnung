@@ -1,3 +1,5 @@
+"""The CLI entry point module of the application."""
+
 import argparse
 import sys
 from importlib.metadata import metadata
@@ -6,7 +8,8 @@ from pathlib import Path
 from ordnung.organize import organize
 
 
-def main():
+def main() -> None:
+    """Run the entry point of the application."""
     program_meta = metadata("ordnung")
     parser = argparse.ArgumentParser(
         prog=program_meta["Name"],
