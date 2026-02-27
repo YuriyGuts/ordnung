@@ -16,6 +16,8 @@ The project was live-coded completely by hand across two [«Шо по коду?�
 You point it at a directory. The agent analyzes the files (including their contents when filenames are ambiguous), decides on categories, creates subdirectories, and moves everything into place.
 It asks for your approval before each action.
 
+<img src="assets/screenshot.png" alt="Screenshot" width="750">
+
 ## Setup
 
 Requires Python 3.12+ and [uv](https://docs.astral.sh/uv/).
