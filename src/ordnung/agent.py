@@ -129,9 +129,13 @@ class Agent:
             return response
 
     def _handle_reasoning(self, item: ResponseReasoningItem) -> None:
-        """Print the reasoning summary from the LLM."""
-        summary_text = "".join(s.text for s in item.summary)
-        print_reasoning(summary_text)
+        """Print the reasoning output from the LLM."""
+        # Prefer `content` (raw reasoning text) over `summary`.
+        if item.content:
+            reasoning_text = "".join(c.text for c in item.content)
+        else:
+            reasoning_text = "".join(s.text for s in item.summary)
+        print_reasoning(reasoning_text)
 
     def _handle_tool_call(self, item: ResponseFunctionToolCall, env: Environment) -> None:
         """Execute a tool call and append the result to the conversation context."""

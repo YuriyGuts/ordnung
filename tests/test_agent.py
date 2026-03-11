@@ -1,6 +1,7 @@
 """Tests for ordnung.agent."""
 
 import json
+import unittest.mock
 from unittest.mock import MagicMock
 
 from openai.types.responses import ResponseOutputRefusal
@@ -137,6 +138,47 @@ def test_handle_tool_call():
             "output": '{"output": []}',
         }
     ]
+
+
+def test_handle_reasoning_prefers_content_over_summary():
+    # GIVEN a reasoning item with both `content` and `summary` populated
+    agent = Agent(llm_client=MagicMock(), tools=[])
+
+    content_entry = MagicMock()
+    content_entry.text = "raw reasoning"
+
+    summary_entry = MagicMock()
+    summary_entry.text = "summary reasoning"
+
+    reasoning_item = MagicMock()
+    reasoning_item.content = [content_entry]
+    reasoning_item.summary = [summary_entry]
+
+    # WHEN handling the reasoning item
+    with unittest.mock.patch("ordnung.agent.print_reasoning") as mock_print:
+        agent._handle_reasoning(reasoning_item)
+
+    # THEN it prints the `content` text, not the `summary` text
+    mock_print.assert_called_once_with("raw reasoning")
+
+
+def test_handle_reasoning_falls_back_to_summary():
+    # GIVEN a reasoning item with only `summary` populated (content is None)
+    agent = Agent(llm_client=MagicMock(), tools=[])
+
+    summary_entry = MagicMock()
+    summary_entry.text = "summary reasoning"
+
+    reasoning_item = MagicMock()
+    reasoning_item.content = None
+    reasoning_item.summary = [summary_entry]
+
+    # WHEN handling the reasoning item
+    with unittest.mock.patch("ordnung.agent.print_reasoning") as mock_print:
+        agent._handle_reasoning(reasoning_item)
+
+    # THEN it falls back to the `summary` text
+    mock_print.assert_called_once_with("summary reasoning")
 
 
 def test_system_prompt_loaded():

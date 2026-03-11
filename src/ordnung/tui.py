@@ -32,10 +32,10 @@ def calling_llm_spinner() -> Status:
     return console.status("[red]Calling the LLM...[/red]", spinner_style="red")
 
 
-def print_reasoning(summary: str) -> None:
-    """Print the reasoning summary returned by the LLM."""
+def print_reasoning(content: str) -> None:
+    """Print the reasoning output returned by the LLM."""
     console.print()
-    console.print(f"💭 {summary}", style="bright_black")
+    console.print(f"💭 {content}", style="bright_black")
 
 
 def print_tool_call_request(name: str, args: dict) -> None:
