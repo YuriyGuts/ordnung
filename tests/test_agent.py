@@ -4,15 +4,35 @@ import json
 import unittest.mock
 from unittest.mock import MagicMock
 
-from openai.types.responses import ResponseOutputRefusal
-from openai.types.responses import ResponseOutputText
+import pytest
 
 from ordnung.agent import Agent
+from ordnung.entities import LLMContentMessage
+from ordnung.entities import LLMReasoning
+from ordnung.entities import LLMToolCall
 
 
-def test_add_user_message():
+@pytest.fixture
+def mock_llm_client():
+    """Create a mock LLM client with default `make_user_message` behavior."""
+    client = MagicMock()
+    client.make_user_message.side_effect = lambda text: {"role": "user", "content": text}
+    client.make_tool_result.side_effect = lambda call_id, output: {
+        "type": "function_call_output",
+        "call_id": call_id,
+        "output": output,
+    }
+    return client
+
+
+@pytest.fixture
+def agent(mock_llm_client):
+    """Create an agent with no tools and a mocked LLM client."""
+    return Agent(llm_client=mock_llm_client, tools=[])
+
+
+def test_add_user_message(agent):
     # GIVEN an agent with empty context
-    agent = Agent(llm_client=MagicMock(), tools=[])
     assert agent.conversation_context == []
 
     # WHEN adding a user message
@@ -22,9 +42,8 @@ def test_add_user_message():
     assert agent.conversation_context == [{"role": "user", "content": "hello"}]
 
 
-def test_add_multiple_user_messages():
+def test_add_multiple_user_messages(agent):
     # GIVEN an agent
-    agent = Agent(llm_client=MagicMock(), tools=[])
 
     # WHEN adding multiple messages
     agent._add_user_message("first")
@@ -36,16 +55,9 @@ def test_add_multiple_user_messages():
     assert agent.conversation_context[1]["content"] == "second"
 
 
-def test_extract_final_result_success():
-    # GIVEN a response message with a successful JSON result
-    agent = Agent(llm_client=MagicMock(), tools=[])
-
-    text_content = MagicMock(spec=ResponseOutputText)
-    text_content.text = json.dumps({"agent_succeeded": True})
-    text_content.__class__ = ResponseOutputText
-
-    msg = MagicMock()
-    msg.content = [text_content]
+def test_extract_final_result_success(agent):
+    # GIVEN a content message with a successful JSON result
+    msg = LLMContentMessage(text=json.dumps({"agent_succeeded": True}), is_refusal=False)
 
     # WHEN extracting the result
     result = agent._extract_final_result(msg)
@@ -55,16 +67,12 @@ def test_extract_final_result_success():
     assert result.error is None
 
 
-def test_extract_final_result_agent_failure():
-    # GIVEN a response message where the agent reports failure
-    agent = Agent(llm_client=MagicMock(), tools=[])
-
-    text_content = MagicMock(spec=ResponseOutputText)
-    text_content.text = json.dumps({"agent_succeeded": False, "error": "Could not categorize"})
-    text_content.__class__ = ResponseOutputText
-
-    msg = MagicMock()
-    msg.content = [text_content]
+def test_extract_final_result_agent_failure(agent):
+    # GIVEN a content message where the agent reports failure
+    msg = LLMContentMessage(
+        text=json.dumps({"agent_succeeded": False, "error": "Could not categorize"}),
+        is_refusal=False,
+    )
 
     # WHEN extracting the result
     result = agent._extract_final_result(msg)
@@ -74,15 +82,9 @@ def test_extract_final_result_agent_failure():
     assert result.error == "Could not categorize"
 
 
-def test_extract_final_result_refusal():
-    # GIVEN a response message with a refusal
-    agent = Agent(llm_client=MagicMock(), tools=[])
-
-    refusal_content = MagicMock(spec=ResponseOutputRefusal)
-    refusal_content.__class__ = ResponseOutputRefusal
-
-    msg = MagicMock()
-    msg.content = [refusal_content]
+def test_extract_final_result_refusal(agent):
+    # GIVEN a content message with a refusal
+    msg = LLMContentMessage(text="", is_refusal=True)
 
     # WHEN extracting the result
     result = agent._extract_final_result(msg)
@@ -93,16 +95,9 @@ def test_extract_final_result_refusal():
     assert "refusal" in result.error.lower()
 
 
-def test_extract_final_result_invalid_json():
-    # GIVEN a response message with non-JSON text
-    agent = Agent(llm_client=MagicMock(), tools=[])
-
-    text_content = MagicMock(spec=ResponseOutputText)
-    text_content.text = "This is not valid JSON"
-    text_content.__class__ = ResponseOutputText
-
-    msg = MagicMock()
-    msg.content = [text_content]
+def test_extract_final_result_invalid_json(agent):
+    # GIVEN a content message with non-JSON text
+    msg = LLMContentMessage(text="This is not valid JSON", is_refusal=False)
 
     # WHEN extracting the result
     result = agent._extract_final_result(msg)
@@ -112,14 +107,14 @@ def test_extract_final_result_invalid_json():
     assert result.error is not None
 
 
-def test_handle_tool_call():
+def test_handle_tool_call(agent, mock_llm_client):
     # GIVEN a tool call item and an environment mock
-    agent = Agent(llm_client=MagicMock(), tools=[])
 
-    tool_call_item = MagicMock()
-    tool_call_item.name = "ListDirectoryTool"
-    tool_call_item.arguments = '{"dir_path": "/tmp"}'
-    tool_call_item.call_id = "call_123"
+    tool_call_item = LLMToolCall(
+        call_id="call_123",
+        name="ListDirectoryTool",
+        arguments='{"dir_path": "/tmp"}',
+    )
 
     env = MagicMock()
     env.run_tool.return_value = {"output": []}
@@ -140,50 +135,20 @@ def test_handle_tool_call():
     ]
 
 
-def test_handle_reasoning_prefers_content_over_summary():
-    # GIVEN a reasoning item with both `content` and `summary` populated
-    agent = Agent(llm_client=MagicMock(), tools=[])
-
-    content_entry = MagicMock()
-    content_entry.text = "raw reasoning"
-
-    summary_entry = MagicMock()
-    summary_entry.text = "summary reasoning"
-
-    reasoning_item = MagicMock()
-    reasoning_item.content = [content_entry]
-    reasoning_item.summary = [summary_entry]
+def test_handle_reasoning(agent):
+    # GIVEN a reasoning item
+    reasoning_item = LLMReasoning(text="raw reasoning")
 
     # WHEN handling the reasoning item
     with unittest.mock.patch("ordnung.agent.print_reasoning") as mock_print:
         agent._handle_reasoning(reasoning_item)
 
-    # THEN it prints the `content` text, not the `summary` text
+    # THEN it prints the reasoning text
     mock_print.assert_called_once_with("raw reasoning")
 
 
-def test_handle_reasoning_falls_back_to_summary():
-    # GIVEN a reasoning item with only `summary` populated (content is None)
-    agent = Agent(llm_client=MagicMock(), tools=[])
-
-    summary_entry = MagicMock()
-    summary_entry.text = "summary reasoning"
-
-    reasoning_item = MagicMock()
-    reasoning_item.content = None
-    reasoning_item.summary = [summary_entry]
-
-    # WHEN handling the reasoning item
-    with unittest.mock.patch("ordnung.agent.print_reasoning") as mock_print:
-        agent._handle_reasoning(reasoning_item)
-
-    # THEN it falls back to the `summary` text
-    mock_print.assert_called_once_with("summary reasoning")
-
-
-def test_system_prompt_loaded():
+def test_system_prompt_loaded(agent):
     # GIVEN a freshly created agent
-    agent = Agent(llm_client=MagicMock(), tools=[])
 
     # THEN the system prompt is loaded and non-empty
     assert agent.system_prompt

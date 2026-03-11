@@ -7,6 +7,7 @@ from argparse import Namespace
 from importlib.metadata import metadata
 from pathlib import Path
 
+from ordnung.entities import LLMAPIMode
 from ordnung.organize import organize
 from ordnung.tui import print_interrupted_message
 
@@ -44,6 +45,14 @@ def parse_args() -> Namespace:
         required=False,
         default="gpt-oss:20b",
     )
+    parser.add_argument(
+        "--llm-api-mode",
+        help="The LLM API mode: 'responses' (default) or 'completions'.",
+        type=LLMAPIMode,
+        required=False,
+        choices=list(LLMAPIMode),
+        default=LLMAPIMode.RESPONSES,
+    )
     args = parser.parse_args()
     return args
 
@@ -58,6 +67,7 @@ def main() -> None:
             llm_api_base_url=args.llm_api_base_url,
             llm_api_key=args.llm_api_key,
             llm_name=args.llm_name,
+            llm_api_mode=args.llm_api_mode,
         )
     except KeyboardInterrupt:
         print_interrupted_message()

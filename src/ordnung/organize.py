@@ -3,10 +3,11 @@
 from pathlib import Path
 
 from ordnung.agent import Agent
+from ordnung.entities import LLMAPIMode
 from ordnung.entities import OrganizeDirectoryResult
 from ordnung.entities import OrganizeDirectoryTaskSpec
 from ordnung.environment import Environment
-from ordnung.llm import LLMClient
+from ordnung.llm import create_llm_client
 from ordnung.security import ToolSecurityPolicy
 from ordnung.tools import CreateDirectoryTool
 from ordnung.tools import ListDirectoryTool
@@ -24,6 +25,7 @@ def organize(
     llm_api_base_url: str,
     llm_api_key: str,
     llm_name: str,
+    llm_api_mode: LLMAPIMode = LLMAPIMode.RESPONSES,
 ) -> OrganizeDirectoryResult:
     """
     Organize the files in the specified directory.
@@ -38,6 +40,8 @@ def organize(
         The API key for LLM API authentication.
     llm_name
         The name of the LLM to use in the LLM API.
+    llm_api_mode
+        The LLM API mode to use.
 
     Returns
     -------
@@ -63,7 +67,8 @@ def organize(
     env = Environment(tools=tools, sec_policy=sec_policy)
 
     # Create the agent.
-    llm_client = LLMClient(
+    llm_client = create_llm_client(
+        api_mode=llm_api_mode,
         base_url=llm_api_base_url,
         api_key=llm_api_key,
         model=llm_name,

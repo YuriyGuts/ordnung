@@ -28,28 +28,24 @@ class TestToolBase:
         # THEN it returns the docstring
         assert description == "Lists the contents of the specified directory."
 
-    def test_to_openai_format(self):
+    def test_to_schema(self):
         # GIVEN a concrete tool class
-        # WHEN converting to OpenAI format
-        result = ListDirectoryTool.to_openai_format()
+        # WHEN converting to a tool schema
+        result = ListDirectoryTool.to_schema()
 
-        # THEN it matches the exact expected object
+        # THEN it returns name, description, and parameters without API-specific keys
         assert result == {
-            "type": "function",
             "name": "ListDirectoryTool",
             "description": "Lists the contents of the specified directory.",
             "parameters": {
-                "description": "Lists the contents of the specified directory.",
                 "properties": {
                     "dir_path": {
                         "description": "The path to the directory to list the contents of.",
                         "format": "path",
-                        "title": "Dir Path",
                         "type": "string",
                     }
                 },
                 "required": ["dir_path"],
-                "title": "ListDirectoryTool",
                 "type": "object",
             },
         }

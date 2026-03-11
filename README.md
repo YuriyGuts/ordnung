@@ -44,7 +44,7 @@ This uses the defaults (Ollama at `localhost:11434`, model `gpt-oss:20b`).
 
 ## Running with a Cloud LLM
 
-Any OpenAI-compatible API works, as long as it supports the [Responses API](https://developers.openai.com/api/reference/responses/overview).
+Any OpenAI-compatible API works. Both the [Responses API](https://developers.openai.com/api/reference/responses/overview) (default) and the [Chat Completions API](https://developers.openai.com/api/reference/chat/) are supported. Use `--llm-api-mode` to choose.
 
 The API key is read from the `OPENAI_API_KEY` environment variable, or can be passed explicitly with `--llm-api-key`.
 
@@ -56,6 +56,15 @@ export OPENAI_API_KEY=sk-...
 uv run ordnung ~/Downloads \
     --llm-api-base-url https://api.openai.com/v1 \
     --llm-name gpt-5.2
+```
+
+Or with a Completions-only service:
+
+```shell
+uv run ordnung ~/Downloads \
+    --llm-api-base-url https://localhost:8000/v1 \
+    --llm-name my-model \
+    --llm-api-mode completions
 ```
 
 ## Developer Tools

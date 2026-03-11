@@ -25,13 +25,22 @@ class Tool(BaseModel, ABC):
         return cls.__doc__ or ""
 
     @classmethod
-    def to_openai_format(cls) -> dict:
-        """Format the tool as an OpenAI tool definition."""
+    def to_schema(cls) -> dict:
+        """Return an API-agnostic tool schema with name, description, and parameters."""
+        # Generate the JSON schema for the tool class.
+        schema = cls.model_json_schema()
+
+        # Remove the extra fields that duplicate the top-level names/descriptions.
+        # These are not required by the API and just inflate the context.
+        schema.pop("description", None)
+        schema.pop("title", None)
+        for prop in schema.get("properties", {}).values():
+            prop.pop("title", None)
+
         return {
-            "type": "function",
             "name": cls.get_name(),
             "description": cls.get_description(),
-            "parameters": cls.model_json_schema(),
+            "parameters": schema,
         }
 
     @abstractmethod
