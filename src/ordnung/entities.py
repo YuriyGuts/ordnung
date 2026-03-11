@@ -37,7 +37,7 @@ class LLMToolCall:
 
 @dataclass
 class LLMContentMessage:
-    """A final content message from the LLM."""
+    """A content message from the LLM (may be intermediate or final)."""
 
     text: str
     is_refusal: bool

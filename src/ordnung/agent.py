@@ -106,10 +106,16 @@ class Agent:
         Final task result if a final state has been reached after this iteration.
         Otherwise, return None.
         """
-        # Run LLM inference and receive a normalized response.
+        # Run LLM inference and receive an API-agnostic response.
         response = self._call_llm()
+
         # Append the raw LLM output items to the context so they are passed on the next turn.
         self.conversation_context += response.raw_context
+
+        # Check if the response contains any tool calls.
+        # If it does, content messages are informational (e.g., "Now I have a good understanding")
+        # rather than a final result.
+        has_tool_calls = any(isinstance(item, LLMToolCall) for item in response.items)
 
         # Handle each output item type individually.
         for item in response.items:
@@ -118,8 +124,10 @@ class Agent:
                     self._handle_reasoning(item)
                 case LLMToolCall():
                     self._handle_tool_call(item, env)
-                case LLMContentMessage():
+                case LLMContentMessage() if not has_tool_calls:
                     return self._extract_final_result(item)
+                case LLMContentMessage():
+                    print_content_response(item.text)
 
         return None
 
