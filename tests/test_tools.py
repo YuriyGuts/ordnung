@@ -210,6 +210,29 @@ class TestReadTextFileTool:
         # THEN the contents are returned
         assert result == {"contents": "Hello world!"}
 
+    def test_with_offset_and_limit(self, sec_policy, populated_sandbox):
+        # GIVEN a text file and an offset/limit
+        text_file = populated_sandbox / "readme.txt"
+        tool = ReadTextFileTool(file_path=text_file, offset=6, limit=5)
+
+        # WHEN reading it
+        result = tool.run(sec_policy)
+
+        # THEN only the specified characters are returned
+        assert result == {"contents": "world"}
+
+    def test_limit_exceeds_max(self, sec_policy, populated_sandbox):
+        # GIVEN a limit exceeding the maximum
+        tool = ReadTextFileTool(
+            file_path=populated_sandbox / "readme.txt",
+            limit=100_000,
+        )
+
+        # WHEN running the tool
+        # THEN a RuntimeError is raised
+        with pytest.raises(RuntimeError, match="maximum allowed limit"):
+            tool.run(sec_policy)
+
     def test_outside_jail(self, sec_policy):
         # GIVEN a file outside the jail
         tool = ReadTextFileTool(file_path=Path("/etc/hostname"))

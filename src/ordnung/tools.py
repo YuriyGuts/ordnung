@@ -103,15 +103,35 @@ class MoveFileOrDirectoryTool(Tool):
 
 
 class ReadTextFileTool(Tool):
-    """Reads the contents of the specified file, assuming it is UTF-8-encoded text."""
+    """Read the contents of a text file, assuming UTF-8 encoding."""
+
+    _MAX_LIMIT = 65536
 
     file_path: Path = Field(description="The path of the file to read.")
+    offset: int = Field(
+        default=0,
+        description="The character offset to start reading from (default 0).",
+    )
+    limit: int = Field(
+        default=4096,
+        description=f"The number of characters to read from the offset (max {_MAX_LIMIT}).",
+    )
 
     def run(self, sec_policy: ToolSecurityPolicy) -> dict:
         """Execute the tool."""
+        if self.limit > self._MAX_LIMIT:
+            raise RuntimeError(
+                f"The specified limit is greater than the maximum allowed limit ({self._MAX_LIMIT})"
+            )
         sec_policy.validate_path_access(self.file_path)
-        file_contents = self.file_path.read_text(encoding="utf-8")
-        return {"contents": file_contents}
+
+        with open(self.file_path, encoding="utf-8") as fd:
+            # We cannot `seek` cleanly to character boundaries in case of multibyte UTF characters,
+            # so we'll read and discard the first `offset` characters.
+            fd.read(self.offset)
+            chunk_contents = fd.read(self.limit)
+
+        return {"contents": chunk_contents}
 
 
 class ReadBinaryFileTool(Tool):
