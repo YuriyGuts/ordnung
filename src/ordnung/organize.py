@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from ordnung.agent import Agent
+from ordnung.entities import DEFAULT_MAX_ITERATIONS
 from ordnung.entities import LLMAPIMode
 from ordnung.entities import OrganizeDirectoryResult
 from ordnung.entities import OrganizeDirectoryTaskSpec
@@ -26,6 +27,7 @@ def organize(
     llm_api_key: str,
     llm_name: str,
     llm_api_mode: LLMAPIMode = LLMAPIMode.RESPONSES,
+    max_iterations: int = DEFAULT_MAX_ITERATIONS,
 ) -> OrganizeDirectoryResult:
     """
     Organize the files in the specified directory.
@@ -42,6 +44,8 @@ def organize(
         The name of the LLM to use in the LLM API.
     llm_api_mode
         The LLM API mode to use.
+    max_iterations
+        The maximum allowed number of agentic loop iterations before aborting.
 
     Returns
     -------
@@ -77,7 +81,7 @@ def organize(
     agent = Agent(llm_client=llm_client, tools=tools)
 
     # Run the agent.
-    result = agent.run_until_done(task_spec=task_spec, env=env)
+    result = agent.run_until_done(task_spec=task_spec, env=env, max_iterations=max_iterations)
     print_final_result(result)
 
     return result

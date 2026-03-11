@@ -2,6 +2,7 @@
 
 import json
 import unittest.mock
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -10,6 +11,7 @@ from ordnung.agent import Agent
 from ordnung.entities import LLMContentMessage
 from ordnung.entities import LLMReasoning
 from ordnung.entities import LLMToolCall
+from ordnung.entities import OrganizeDirectoryTaskSpec
 
 
 @pytest.fixture
@@ -153,3 +155,41 @@ def test_system_prompt_loaded(agent):
     # THEN the system prompt is loaded and non-empty
     assert agent.system_prompt
     assert len(agent.system_prompt) > 0
+
+
+def test_run_until_done_aborts_after_max_iterations(mock_llm_client, agent):
+    # GIVEN an LLM client that never produces a final content message
+    client = mock_llm_client
+    client.create_response.return_value = MagicMock(items=[], raw_context=[])
+    task_spec = OrganizeDirectoryTaskSpec(dir_path=Path("/tmp/test"))
+    env = MagicMock()
+
+    # WHEN running the agentic loop with a small iteration limit
+    result = agent.run_until_done(task_spec=task_spec, env=env, max_iterations=3)
+
+    # THEN it aborts with a failure result mentioning the iteration limit
+    assert result.is_success is False
+    assert result.error == "Agent exceeded maximum iterations (3)"
+    assert client.create_response.call_count == 3
+
+
+def test_run_until_done_returns_result_before_max_iterations(mock_llm_client, agent):
+    # GIVEN an LLM client that returns a final content message on the second call
+    client = mock_llm_client
+    success_response = json.dumps({"agent_succeeded": True})
+    empty_response = MagicMock(items=[], raw_context=[])
+    final_response = MagicMock(
+        items=[LLMContentMessage(text=success_response, is_refusal=False)],
+        raw_context=[],
+    )
+    client.create_response.side_effect = [empty_response, final_response]
+
+    task_spec = OrganizeDirectoryTaskSpec(dir_path=Path("/tmp/test"))
+    env = MagicMock()
+
+    # WHEN running the agentic loop with a generous iteration limit
+    result = agent.run_until_done(task_spec=task_spec, env=env, max_iterations=10)
+
+    # THEN it returns the successful result without exhausting all iterations
+    assert result.is_success is True
+    assert client.create_response.call_count == 2

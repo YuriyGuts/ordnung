@@ -7,6 +7,7 @@ from argparse import Namespace
 from importlib.metadata import metadata
 from pathlib import Path
 
+from ordnung.entities import DEFAULT_MAX_ITERATIONS
 from ordnung.entities import LLMAPIMode
 from ordnung.organize import organize
 from ordnung.tui import print_interrupted_message
@@ -53,6 +54,16 @@ def parse_args() -> Namespace:
         choices=list(LLMAPIMode),
         default=LLMAPIMode.RESPONSES,
     )
+    parser.add_argument(
+        "--max-iterations",
+        help=(
+            "The maximum allowed number of agentic loop iterations before aborting"
+            f" (default: {DEFAULT_MAX_ITERATIONS})."
+        ),
+        type=int,
+        required=False,
+        default=DEFAULT_MAX_ITERATIONS,
+    )
     args = parser.parse_args()
     return args
 
@@ -68,6 +79,7 @@ def main() -> None:
             llm_api_key=args.llm_api_key,
             llm_name=args.llm_name,
             llm_api_mode=args.llm_api_mode,
+            max_iterations=args.max_iterations,
         )
     except KeyboardInterrupt:
         print_interrupted_message()

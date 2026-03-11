@@ -4,6 +4,7 @@ import json
 from collections.abc import Sequence
 from pathlib import Path
 
+from ordnung.entities import DEFAULT_MAX_ITERATIONS
 from ordnung.entities import LLMContentMessage
 from ordnung.entities import LLMReasoning
 from ordnung.entities import LLMResponse
@@ -58,6 +59,7 @@ class Agent:
         self,
         task_spec: OrganizeDirectoryTaskSpec,
         env: Environment,
+        max_iterations: int = DEFAULT_MAX_ITERATIONS,
     ) -> OrganizeDirectoryResult:
         """
         Run the agentic loop until it reaches a final result (success or failure).
@@ -68,6 +70,8 @@ class Agent:
             The specification of the task to perform.
         env
             The environment to execute the tools in.
+        max_iterations
+            The maximum allowed number of agentic loop iterations before aborting.
 
         Returns
         -------
@@ -75,9 +79,15 @@ class Agent:
         """
         initial_message = f'Input directory: "{task_spec.dir_path}"'
         self._add_user_message(initial_message)
-        while not (final_result := self._act(env)):
-            pass
-        return final_result
+
+        for _ in range(max_iterations):
+            if final_result := self._act(env):
+                return final_result
+
+        return OrganizeDirectoryResult(
+            is_success=False,
+            error=f"Agent exceeded maximum iterations ({max_iterations})",
+        )
 
     def _act(self, env: Environment) -> OrganizeDirectoryResult | None:
         """

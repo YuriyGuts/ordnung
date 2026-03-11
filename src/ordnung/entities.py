@@ -6,6 +6,10 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
+# The default maximum number of agentic loop iterations before aborting.
+# This exists to safeguard against cases when the LLM gets stuck in a hallucinated repetitive loop.
+DEFAULT_MAX_ITERATIONS = 200
+
 
 class LLMAPIMode(StrEnum):
     """The LLM API mode to use for communication."""
