@@ -64,6 +64,12 @@ def parse_args() -> Namespace:
         required=False,
         default=DEFAULT_MAX_ITERATIONS,
     )
+    parser.add_argument(
+        "--skip-permissions",
+        help="Pre-approve all tools so the agent runs without interactive permission prompts.",
+        action="store_true",
+        default=False,
+    )
     args = parser.parse_args()
     return args
 
@@ -80,6 +86,7 @@ def main() -> None:
             llm_name=args.llm_name,
             llm_api_mode=args.llm_api_mode,
             max_iterations=args.max_iterations,
+            skip_permissions=args.skip_permissions,
         )
     except KeyboardInterrupt:
         print_interrupted_message()

@@ -68,6 +68,14 @@ def print_tool_auto_approval_update(tool_name: str) -> None:
     )
 
 
+def print_skip_permissions_warning() -> None:
+    """Print a warning about running in `--skip-permissions` mode."""
+    console.print(
+        '🔓 WARNING: Running in "skip permissions" mode. All tool calls will be auto-approved.',
+        style="bright_yellow",
+    )
+
+
 def print_tool_result(result: dict) -> None:
     """Print the results of tool execution."""
     console.print("🔨 Tool output:")

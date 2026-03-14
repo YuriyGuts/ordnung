@@ -18,6 +18,7 @@ from ordnung.tools import ReadTextFileTool
 from ordnung.tools import Tool
 from ordnung.tui import print_final_result
 from ordnung.tui import print_llm_api_details
+from ordnung.tui import print_skip_permissions_warning
 from ordnung.tui import print_task_spec
 
 
@@ -28,6 +29,7 @@ def organize(
     llm_name: str,
     llm_api_mode: LLMAPIMode = LLMAPIMode.RESPONSES,
     max_iterations: int = DEFAULT_MAX_ITERATIONS,
+    skip_permissions: bool = False,
 ) -> OrganizeDirectoryResult:
     """
     Organize the files in the specified directory.
@@ -46,6 +48,8 @@ def organize(
         The LLM API mode to use.
     max_iterations
         The maximum allowed number of agentic loop iterations before aborting.
+    skip_permissions
+        Pre-approve all tools so the agent runs without interactive permission prompts.
 
     Returns
     -------
@@ -68,6 +72,9 @@ def organize(
 
     # Set up the environment.
     sec_policy = ToolSecurityPolicy(fs_root_jail=dir_path)
+    if skip_permissions:
+        print_skip_permissions_warning()
+        sec_policy.approved_tool_names |= {tool.get_name() for tool in tools}
     env = Environment(tools=tools, sec_policy=sec_policy)
 
     # Create the agent.
